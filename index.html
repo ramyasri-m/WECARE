@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+<title>WECARE Monitor</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #13131a;
+    --border:    #1e1e2e;
+    --text:      #e8e8f0;
+    --muted:     #6b6b8a;
+    --idle:      #1e1e2e;
+    --idle-text: #6b6b8a;
+    --medium:    #ff9f0a;
+    --high:      #ff3b30;
+    --resolved:  #30d158;
+    --mono:      'Space Mono', monospace;
+    --sans:      'DM Sans', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 0 40px;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    width: 100%;
+    padding: 18px 24px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--bg);
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--text);
+  }
+
+  .logo span {
+    color: var(--high);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    margin-right: 8px;
+    transition: background 0.3s;
+  }
+
+  .status-dot.live {
+    background: var(--resolved);
+    box-shadow: 0 0 8px var(--resolved);
+    animation: pulse-dot 2s infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+  }
+
+  /* ── Main container ── */
+  .container {
+    width: 100%;
+    max-width: 480px;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* ── Severity card ── */
+  .severity-card {
+    width: 100%;
+    border-radius: 16px;
+    padding: 28px 20px;
+    text-align: center;
+    background: var(--idle);
+    border: 1px solid var(--border);
+    transition: background 0.4s, border-color 0.4s, box-shadow 0.4s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .severity-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.4s;
+    background: radial-gradient(circle at 50% 0%, rgba(255,59,48,0.15), transparent 70%);
+  }
+
+  .severity-card.high::before { opacity: 1; }
+
+  .severity-card.high {
+    background: rgba(255,59,48,0.12);
+    border-color: var(--high);
+    box-shadow: 0 0 40px rgba(255,59,48,0.2);
+    animation: emergency-pulse 1.5s ease-in-out infinite;
+  }
+
+  .severity-card.medium {
+    background: rgba(255,159,10,0.1);
+    border-color: var(--medium);
+    box-shadow: 0 0 20px rgba(255,159,10,0.15);
+  }
+
+  .severity-card.resolved {
+    background: rgba(48,209,88,0.1);
+    border-color: var(--resolved);
+    box-shadow: 0 0 20px rgba(48,209,88,0.15);
+  }
+
+  @keyframes emergency-pulse {
+    0%, 100% { box-shadow: 0 0 40px rgba(255,59,48,0.2); }
+    50%       { box-shadow: 0 0 60px rgba(255,59,48,0.4); }
+  }
+
+  .severity-eyebrow {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .severity-value {
+    font-family: var(--mono);
+    font-size: 52px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--idle-text);
+    transition: color 0.4s;
+    letter-spacing: -0.02em;
+  }
+
+  .severity-value.high     { color: var(--high); }
+  .severity-value.medium   { color: var(--medium); }
+  .severity-value.resolved { color: var(--resolved); }
+
+  .severity-state {
+    margin-top: 10px;
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    transition: color 0.3s;
+  }
+
+  /* ── Stats grid ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    transition: border-color 0.3s;
+  }
+
+  .stat-card.active { border-color: var(--high); }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    transition: color 0.3s;
+  }
+
+  .stat-value.alert { color: var(--high); }
+
+  .stat-bar {
+    margin-top: 8px;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--muted);
+    transition: width 0.6s ease, background 0.3s;
+    width: 0%;
+  }
+
+  .stat-bar-fill.fall  { background: var(--high); }
+  .stat-bar-fill.arrhy { background: var(--medium); }
+
+  /* ── BLE card ── */
+  .ble-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .ble-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+
+  .ble-icon.nearby { background: rgba(48,209,88,0.15); }
+
+  .ble-info { flex: 1; }
+
+  .ble-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 3px;
+  }
+
+  .ble-value {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  /* ── Instructions card ── */
+  .instructions-card {
+    background: var(--surface);
+    border: 1px solid var(--high);
+    border-radius: 12px;
+    padding: 18px;
+    display: none;
+    animation: slide-in 0.3s ease;
+  }
+
+  .instructions-card.visible { display: block; }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .instructions-header {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--high);
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .instructions-header::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--high);
+    animation: pulse-dot 1s infinite;
+  }
+
+  .instructions-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text);
+    white-space: pre-line;
+  }
+
+  .instructions-step {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+
+  .step-num {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--high);
+    background: rgba(255,59,48,0.12);
+    border-radius: 4px;
+    padding: 2px 6px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .step-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text);
+  }
+
+  .help-line {
+    margin-top: 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--resolved);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── Buttons ── */
+  .btn-force {
+    width: 100%;
+    padding: 16px;
+    background: var(--high);
+    color: white;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  .btn-force:active { transform: scale(0.98); opacity: 0.9; }
+
+  .btn-resolve {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    color: var(--resolved);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--resolved);
+    border-radius: 12px;
+    cursor: pointer;
+    display: none;
+    transition: background 0.2s;
+  }
+
+  .btn-resolve.visible { display: block; }
+  .btn-resolve:active { background: rgba(48,209,88,0.1); }
+
+  /* ── Last updated ── */
+  .last-updated {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-align: center;
+    padding-top: 4px;
+  }
+
+  /* ── Log ── */
+  .log-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+
+  .log-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .log-entry {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.8;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 4px;
+    margin-bottom: 4px;
+  }
+
+  .log-entry:last-child { border-bottom: none; margin-bottom: 0; }
+  .log-entry.high   { color: var(--high); }
+  .log-entry.medium { color: var(--medium); }
+  .log-entry.ok     { color: var(--resolved); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">WE<span>CARE</span></div>
+  <div class="status-label">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusText">CONNECTING</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Severity card -->
+  <div class="severity-card" id="severityCard">
+    <div class="severity-eyebrow">System Severity</div>
+    <div class="severity-value" id="severityValue">IDLE</div>
+    <div class="severity-state" id="systemState">State: Initializing...</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card" id="fallCard">
+      <div class="stat-label">Fall Prob.</div>
+      <div class="stat-value" id="fallValue">--</div>
+      <div class="stat-bar">
+        <div class="stat-bar-fill fall" id="fallBar"></div>
+      </div>
+    </div>
+    <div class="stat-card" id="arrhyCard">
+      <div class="stat-label">Arrhythmia</div>
+      <div class="stat-value" id="arrhyValue">--</div>
+      <div class="stat-bar">
+        <div class="stat-bar-fill arrhy" id="arrhyBar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLE -->
+  <div class="ble-card">
+    <div class="ble-icon" id="bleIcon">📡</div>
+    <div class="ble-info">
+      <div class="ble-title">BLE Proximity</div>
+      <div class="ble-value" id="bleValue">Scanning for bystanders...</div>
+    </div>
+  </div>
+
+  <!-- Instructions -->
+  <div class="instructions-card" id="instructionsCard">
+    <div class="instructions-header">Bystander Instructions</div>
+    <div id="instructionsContent"></div>
+  </div>
+
+  <!-- Force emergency button -->
+  <button class="btn-force" id="btnForce" onclick="forceEmergency()">
+    Force Emergency (Demo)
+  </button>
+
+  <!-- Resolve button -->
+  <button class="btn-resolve" id="btnResolve" onclick="resolve()">
+    Mark as Resolved
+  </button>
+
+  <!-- Last updated -->
+  <div class="last-updated" id="lastUpdated">Waiting for data...</div>
+
+  <!-- Log -->
+  <div class="log-card">
+    <div class="log-title">Event Log</div>
+    <div id="logEntries"></div>
+  </div>
+
+</div>
+
+<script>
+  const NTFY_TOPIC = "wecare-demo";
+  const NTFY_URL   = `https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&since=30s`;
+
+  let isEmergency  = false;
+  let pollInterval = null;
+  let lastMsgId    = null;
+
+  // ── Poll ntfy for latest message ──────────────────────────────────────
+  async function poll() {
+    try {
+      const res = await fetch(NTFY_URL);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const text = await res.text();
+      if (!text.trim()) return;
+
+      // ntfy returns newline-delimited JSON — get last line
+      const lines = text.trim().split("\n").filter(l => l.trim());
+      if (lines.length === 0) return;
+
+      const latest = JSON.parse(lines[lines.length - 1]);
+
+      // Skip if same message
+      if (latest.id === lastMsgId) return;
+      lastMsgId = latest.id;
+
+      // Parse message body for our data
+      const body = latest.message || "";
+      const title = latest.title || "";
+
+      // Extract values from message body
+      const fallMatch  = body.match(/Fall:\s*([\d.]+)/);
+      const arrhyMatch = body.match(/Arrhythmia:\s*([\d.]+)/);
+      const stateMatch = body.match(/State:\s*([A-Z_]+)/);
+      const bleMatch   = body.match(/BLE:\s*(.+?)(?:\n|$)/);
+
+      const fallProb  = fallMatch  ? parseFloat(fallMatch[1])  : 0;
+      const arrhyProb = arrhyMatch ? parseFloat(arrhyMatch[1]) : 0;
+      const state     = stateMatch ? stateMatch[1] : "UNKNOWN";
+      const bleText   = bleMatch   ? bleMatch[1].trim() : "Unknown";
+
+      // Determine severity from title
+      let severity = "NONE";
+      if (title.includes("EMERGENCY")) severity = "HIGH";
+      else if (title.includes("Alert Pending")) severity = "MEDIUM";
+      else if (title.includes("Monitoring")) severity = "NONE";
+
+      // Extract instructions
+      let instructions = "";
+      const instrIdx = body.indexOf("INSTRUCTIONS:");
+      if (instrIdx !== -1) {
+        instructions = body.substring(instrIdx + 13).trim();
+      }
+
+      updateUI(severity, state, fallProb, arrhyProb, bleText, instructions);
+      setConnected(true);
+
+    } catch (e) {
+      console.warn("Poll error:", e);
+      setConnected(false);
+    }
+  }
+
+  // ── Update all UI elements ─────────────────────────────────────────────
+  function updateUI(severity, state, fallProb, arrhyProb, bleText, instructions) {
+    const card     = document.getElementById("severityCard");
+    const sevVal   = document.getElementById("severityValue");
+    const stateEl  = document.getElementById("systemState");
+    const fallEl   = document.getElementById("fallValue");
+    const arrhyEl  = document.getElementById("arrhyValue");
+    const fallBar  = document.getElementById("fallBar");
+    const arrhyBar = document.getElementById("arrhyBar");
+    const bleEl    = document.getElementById("bleValue");
+    const bleIcon  = document.getElementById("bleIcon");
+    const instrCard= document.getElementById("instructionsCard");
+    const instrCont= document.getElementById("instructionsContent");
+    const btnRes   = document.getElementById("btnResolve");
+    const lastUpd  = document.getElementById("lastUpdated");
+
+    // Severity card
+    card.className = "severity-card " + severity.toLowerCase();
+    sevVal.className = "severity-value " + severity.toLowerCase();
+    sevVal.textContent = severity === "NONE" ? "IDLE" : severity;
+    stateEl.textContent = "State: " + state;
+
+    // Probabilities
+    fallEl.textContent  = fallProb.toFixed(4);
+    arrhyEl.textContent = arrhyProb.toFixed(4);
+    fallBar.style.width  = (fallProb * 100) + "%";
+    arrhyBar.style.width = (arrhyProb * 100) + "%";
+
+    if (fallProb >= 0.65)  fallEl.className  = "stat-value alert";
+    else                   fallEl.className  = "stat-value";
+    if (arrhyProb >= 0.50) arrhyEl.className = "stat-value alert";
+    else                   arrhyEl.className = "stat-value";
+
+    // BLE
+    const nearby = bleText.toLowerCase().includes("nearby");
+    bleEl.textContent = bleText;
+    bleIcon.className = nearby ? "ble-icon nearby" : "ble-icon";
+    bleIcon.textContent = nearby ? "📶" : "📡";
+
+    // Instructions
+    if (severity === "HIGH" && instructions) {
+      instrCard.className = "instructions-card visible";
+      instrCont.innerHTML = formatInstructions(instructions);
+      isEmergency = true;
+      btnRes.className = "btn-resolve visible";
+    } else if (!isEmergency) {
+      instrCard.className = "instructions-card";
+      btnRes.className = "btn-resolve";
+    }
+
+    // Last updated
+    const now = new Date();
+    lastUpd.textContent = "Last updated: " + now.toLocaleTimeString();
+
+    // Log
+    addLog(severity, state, fallProb, arrhyProb);
+  }
+
+  function formatInstructions(text) {
+    const lines = text.split("\n").filter(l => l.trim());
+    let html = "";
+    lines.forEach(line => {
+      line = line.trim();
+      if (!line) return;
+      if (line.match(/^Help is on the way/i)) {
+        html += `<div class="help-line">${line}</div>`;
+      } else {
+        const match = line.match(/^(\d+)\.\s*(.+)/);
+        if (match) {
+          html += `<div class="instructions-step">
+            <span class="step-num">${match[1]}</span>
+            <span class="step-text">${match[2]}</span>
+          </div>`;
+        } else {
+          html += `<div class="step-text">${line}</div>`;
+        }
+      }
+    });
+    return html;
+  }
+
+  // ── Log ────────────────────────────────────────────────────────────────
+  function addLog(severity, state, fall, arrhy) {
+    const el  = document.getElementById("logEntries");
+    const now = new Date().toLocaleTimeString();
+    const cls = severity === "HIGH" ? "high" : severity === "MEDIUM" ? "medium" : "ok";
+    const entry = document.createElement("div");
+    entry.className = `log-entry ${cls}`;
+    entry.textContent = `${now}  ${severity}  ${state}  F:${fall.toFixed(2)} A:${arrhy.toFixed(2)}`;
+    el.insertBefore(entry, el.firstChild);
+    // Keep only 10 entries
+    while (el.children.length > 10) el.removeChild(el.lastChild);
+  }
+
+  // ── Connection status ──────────────────────────────────────────────────
+  function setConnected(connected) {
+    const dot  = document.getElementById("statusDot");
+    const text = document.getElementById("statusText");
+    if (connected) {
+      dot.className  = "status-dot live";
+      text.textContent = "LIVE";
+    } else {
+      dot.className  = "status-dot";
+      text.textContent = "OFFLINE";
+    }
+  }
+
+  // ── Force emergency ────────────────────────────────────────────────────
+  async function forceEmergency() {
+    const btn = document.getElementById("btnForce");
+    btn.textContent = "Triggering...";
+    btn.disabled = true;
+
+    // Show immediate feedback
+    updateUI("HIGH", "ALERT_ACTIVE", 1.0, 1.0,
+             "Bystander nearby", "Fetching instructions...");
+
+    setTimeout(() => {
+      btn.textContent = "Force Emergency (Demo)";
+      btn.disabled = false;
+    }, 3000);
+
+    // Poll immediately to get real data
+    await poll();
+  }
+
+  // ── Resolve ────────────────────────────────────────────────────────────
+  function resolve() {
+    isEmergency = false;
+    document.getElementById("severityCard").className = "severity-card";
+    document.getElementById("severityValue").className = "severity-value";
+    document.getElementById("severityValue").textContent = "IDLE";
+    document.getElementById("systemState").textContent = "State: RESOLVED";
+    document.getElementById("instructionsCard").className = "instructions-card";
+    document.getElementById("btnResolve").className = "btn-resolve";
+    document.getElementById("fallValue").className  = "stat-value";
+    document.getElementById("arrhyValue").className = "stat-value";
+    addLog("RESOLVED", "RESOLVED", 0, 0);
+  }
+
+  // ── Start polling ──────────────────────────────────────────────────────
+  poll();
+  pollInterval = setInterval(poll, 8000);
+</script>
+</body>
+</html>
