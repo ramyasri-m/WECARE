@@ -737,9 +737,48 @@
     addLog("RESOLVED", "RESOLVED", 0, 0);
   }
 
+  // ── BLE polling from mobile app ─────────────────────────────────────────
+  const BLE_TOPIC_URL = "https://ntfy.sh/wecare-demo-ble/json?poll=1&since=60s";
+  let lastBleId = null;
+
+  async function pollBLE() {
+    try {
+      const res   = await fetch(BLE_TOPIC_URL);
+      const text  = await res.text();
+      const lines = text.trim().split("\n").filter(l => l.trim());
+      if (!lines.length) return;
+
+      const latest = JSON.parse(lines[lines.length - 1]);
+      if (latest.id === lastBleId) return;
+      lastBleId = latest.id;
+
+      const body         = latest.message || "";
+      const nearbyMatch  = body.match(/Nearby:\s*(\d+)/);
+      const rssiMatch    = body.match(/Best RSSI:\s*([-\d.]+)/);
+      const estMatch     = body.match(/Est:\s*([\d.]+)/);
+
+      if (nearbyMatch) {
+        const nearby  = parseInt(nearbyMatch[1]);
+        const rssi    = rssiMatch ? rssiMatch[1] + " dBm" : "";
+        const est     = estMatch  ? estMatch[1]  + " m"   : "";
+        const bleText = nearby > 0
+          ? `${nearby} bystander(s) nearby — ${rssi} / ~${est}`
+          : `No bystanders in range — ${rssi}`;
+
+        document.getElementById("bleValue").textContent = bleText;
+        const icon = document.getElementById("bleIcon");
+        icon.textContent = nearby > 0 ? "📶" : "📡";
+        icon.className   = nearby > 0 ? "ble-icon nearby" : "ble-icon";
+      }
+    } catch (e) {
+      console.warn("BLE poll error:", e);
+    }
+  }
+
   // ── Start polling ──────────────────────────────────────────────────────
   poll();
   pollInterval = setInterval(poll, 8000);
+  setInterval(pollBLE, 10000);
 </script>
 </body>
 </html>
